@@ -4,6 +4,7 @@
 #include <LowPower.h>
 #include "Utilities.h"
 #include "Logging.h"
+#include <avr/eeprom.h>
 
 //
 // Satellite Physical Setup
@@ -19,6 +20,7 @@ const lmic_pinmap lmic_pins = {
   .dio = {2, A2, LMIC_UNUSED_PIN},
 };
 
+int payload_sensor_send = false;
 
 //
 // Global Variable so LMIC functions can access app object
@@ -146,6 +148,14 @@ void AmbaSat1App::setup()
     // Finished Setting up. Tun LED off
     //
     digitalWrite(LED_PIN, LOW);
+
+    PRINTLN_INFO(F("Reading sensor data from EEPROM.\n"));
+    Serial.flush();
+    uint8_t buffers[16];
+    eeprom_read_block(buffers, (uint8_t *)0x100, 14);
+    print_buffer(buffers, 14);
+    PRINTLN_INFO(F("\n"));
+    Serial.flush();
 }
 
 void AmbaSat1App::loop()
@@ -202,6 +212,7 @@ void AmbaSat1App::loop()
                 case MISSION_SENSOR_PAYLOAD:
                     if (_missionSensor.isActive()) {
                         PRINTLN_INFO(F("Sending mission sensor"));
+                        payload_sensor_send = true;
                         sendSensorPayload(_missionSensor);
                     }
                     break;
@@ -230,7 +241,8 @@ void AmbaSat1App::loop()
     Serial.flush();
 
     // sleep device for designated sleep cycles
-    for (int i=0; i < _config.getUplinkSleepCycles(); i++)
+   // for (int i=0; i < _config.getUplinkSleepCycles(); i++)
+   for (int i=0; i < 16; i++)  // 64 seconds between packets
     {
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    //sleep 8 seconds * sleepcycles
     }
@@ -256,11 +268,26 @@ void AmbaSat1App::sendSensorPayload(LoRaPayloadBase& sensor)
         PRINTLN_INFO(F("  Sensor data is NULL"));
         return;
     }
+
 #if LOG_LEVEL >= LOG_LEVEL_INFO
     PRINT_INFO(F("  Sending payload = "));
     print_buffer(data_ptr, sensor.getMeasurementBufferSize());
     Serial.flush();
 #endif
+
+    if (payload_sensor_send)
+    {
+        PRINT_INFO(F("  Sending Sensor, Sequence: "));
+        PRINT_INFO((int)LMIC.seqnoUp);
+        PRINT_INFO(F("\n"));
+        Serial.flush();
+        payload_sensor_send = false;
+        eeprom_update_word((uint16_t *)0x100, (int)LMIC.seqnoUp);
+        eeprom_update_word((uint16_t *)0x102, data_ptr[0]);
+        eeprom_update_dword((uint32_t*)0x104, data_ptr[2]);
+        eeprom_update_word((uint16_t *)0x108, data_ptr[6]);
+        eeprom_update_dword((uint32_t*)0x10c, data_ptr[10]);
+    }    
 
     // LMIC seems to crash here if we previously just received a downlink AND
     // there are any pending data in the Serial queue. So flush the Serial queue.
