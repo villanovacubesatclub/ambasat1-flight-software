@@ -38,6 +38,10 @@
 #define LSM9DS1_STATUS_REG_M       0x27
 #define LSM9DS1_OUT_X_L_M          0x28
 
+
+long int accelMax[3], accelMin[3];
+long int gyroMax[3], gyroMin[3];
+
 LSM9DS1Sensor::LSM9DS1Sensor(PersistedConfiguration& config)
     :   SensorBase(config)
 {
@@ -82,6 +86,17 @@ bool LSM9DS1Sensor::begin(void)
         end();
         return false;
     }
+
+
+    // set max and min values
+    PRINTLN_INFO(F("Setting max and min values"));
+    for (int i=0; i < 3; i++)
+    {
+        accelMin[i] =  100000;
+        gyroMin[i]  =  100000;
+        accelMax[i] = -100000;      
+        gyroMax[i]  = -100000;      }
+
     return true;
 }
 void LSM9DS1Sensor::end(void)
@@ -287,6 +302,42 @@ LSM9DS1Sensor::getCurrentMeasurementBuffer(void)
     // While the AdaFruit library stores the above values in floats, they are
     // actually sourced from int16_t values. Converting back to int16_t should
     // have no data loss.
+
+    for (int i=0; i < 3; i++)
+    {
+        if (accelData[i] > accelMax[i])
+        {
+            accelMax[i] = accelData[i];
+            PRINT_INFO(F("Updating max accel["));
+            PRINT_INFO(i);
+            PRINT_INFO(F("] to "));
+            PRINTLN_INFO(accelData[i]);
+        }
+        if (accelData[i] < accelMin[i])
+        {
+            accelMin[i] = accelData[i];
+            PRINT_INFO(F("Updating min accel["));
+            PRINT_INFO(i);
+            PRINT_INFO(F("] to "));
+            PRINTLN_INFO(accelData[i]);
+        }
+        if (gyroData[i] > gyroMax[i])
+        {
+            gyroMax[i] = gyroData[i];
+            PRINT_INFO(F("Updating max gyro["));
+            PRINT_INFO(i);
+            PRINT_INFO(F("] to "));
+            PRINTLN_INFO(gyroData[i]);
+        }
+        if (gyroData[i] < gyroMin[i])
+        {
+            gyroMin[i] = gyroData[i];
+            PRINT_INFO(F("Updating min gyro["));
+            PRINT_INFO(i);
+            PRINT_INFO(F("] to "));
+            PRINTLN_INFO(gyroData[i]);
+        }
+      }
 
     hton_int16(accelData[0], &_buffer[0]);
     hton_int16(accelData[1], &_buffer[2]);
