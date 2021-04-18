@@ -50,6 +50,7 @@
 #define BME680_run_gas_ON               0x10
 #define BME680_run_gas_OFF              0x00
 
+long int max[4], min[4];
 
 BME680Sensor::BME680Sensor(PersistedConfiguration& config)
     :   SensorBase(config),
@@ -82,6 +83,14 @@ bool BME680Sensor::begin(void)
         return false;
     }
     PRINTLN_INFO(F("Found BME680"));
+
+    // set max and min values
+    PRINTLN_INFO(F("Setting max and min values"));
+    for (int i=0; i < 4; i++)
+    {
+        min[i] =  10000;
+        max[i] = -10000;      
+    }
     return true;
 }
 
@@ -321,6 +330,22 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer(void)
 
     // now that we have a current temperature, update the gas resitance sensor calibration
     updateTemperatureTargetResistance(getGasHeaterTemperature(), temp_comp/100);
+
+    if (temp_comp > max[0])
+    {
+        max[0] = temp_comp;
+        PRINTLN_INFO(F("Updating temp max! "));
+        PRINTLN_INFO(max[0]);
+        Serial.flush();
+    }
+
+   if (temp_comp < min[0])
+    {
+        min[0] = temp_comp;
+        PRINTLN_INFO(F("Updating temp min! "));
+        PRINTLN_INFO(min[0]);
+        Serial.flush();
+    }
 
     //
     // Transmit buffer format:
