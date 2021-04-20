@@ -51,6 +51,7 @@
 #define BME680_run_gas_OFF              0x00
 
 long int max[4], min[4];
+extern uint32_t    sequenceNumber; 
 
 BME680Sensor::BME680Sensor(PersistedConfiguration& config)
     :   SensorBase(config),
@@ -88,8 +89,8 @@ bool BME680Sensor::begin(void)
     PRINTLN_INFO(F("Setting max and min values"));
     for (int i=0; i < 4; i++)
     {
-        min[i] =  10000;
-        max[i] = -10000;      
+        min[i] =  200000;
+        max[i] = -200000;      
     }
     return true;
 }
@@ -246,7 +247,7 @@ uint16_t BME680Sensor::calculateMeasurmentDuration(void) const
     return 300;
 }
 
-const uint8_t* BME680Sensor::getCurrentMeasurementBuffer(void)
+const uint8_t* BME680Sensor::getCurrentMeasurementBuffer()
 {
     // normally the BME680 measurement process can be done asynchronously, allowing the MCU to do other
     // things. But the AmbaSat-1 will brown out if both the BME680 heater and the RFM95 transmitter are
@@ -334,18 +335,52 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer(void)
     if (temp_comp > max[0])
     {
         max[0] = temp_comp;
-        PRINTLN_INFO(F("Updating temp max! "));
+        PRINT_INFO(F("Updating temp max! "));
         PRINTLN_INFO(max[0]);
-        Serial.flush();
     }
-
    if (temp_comp < min[0])
     {
         min[0] = temp_comp;
-        PRINTLN_INFO(F("Updating temp min! "));
+        PRINT_INFO(F("Updating temp min! "));
         PRINTLN_INFO(min[0]);
-        Serial.flush();
     }
+    if (press_comp > max[1])
+    {
+        max[1] = press_comp;
+        PRINT_INFO(F("Updating press max! "));
+        PRINTLN_INFO(max[1]);
+    }      
+    if (press_comp < min[1])
+    {
+        min[1] = press_comp;
+        PRINT_INFO(F("Updating press min! "));
+        PRINTLN_INFO(min[1]);
+    }   
+    if (hum_comp > max[2])
+    {
+        max[2] = hum_comp;
+        PRINT_INFO(F("Updating hum max! "));
+        PRINTLN_INFO(max[2]);
+    }
+   if (hum_comp < min[2])
+    {
+        min[2] = hum_comp;
+        PRINT_INFO(F("Updating hum min! "));
+        PRINTLN_INFO(min[2]);
+    }
+    if (gas_res > max[3])
+    {
+        max[3] = gas_res;
+        PRINT_INFO(F("Updating gas max! "));
+        PRINTLN_INFO(max[3]);
+    }
+   if (gas_res < min[3])
+    {
+        min[3] = gas_res;
+        PRINT_INFO(F("Updating gas min! "));
+        PRINTLN_INFO(min[3]);
+    }
+
 
     //
     // Transmit buffer format:
@@ -362,10 +397,27 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer(void)
     //
 
     memset(_buffer, 0, BME680_RESULTS_BUFFER_SIZE);
-    hton_int16(temp_comp, &_buffer[0]);
-    hton_int32(press_comp, &_buffer[2]);
-    hton_int16(hum_comp/10, &_buffer[6]);
-    hton_int32(gas_res, &_buffer[8]);
+    if (((long int)(sequenceNumber/3) % 3) == 0)
+    {
+        hton_int16(max[0], &_buffer[0]);
+        hton_int32(max[2], &_buffer[2]);
+        hton_int16(max[6]/10, &_buffer[6]);
+        hton_int32(max[8], &_buffer[8]);
+    }
+    else if (((long int)(sequenceNumber/3) % 3) == 1)
+    {
+        hton_int16(min[0], &_buffer[0]);
+        hton_int32(min[2], &_buffer[2]);
+        hton_int16(min[6]/10, &_buffer[6]);
+        hton_int32(min[8], &_buffer[8]);
+    } else 
+    {
+        hton_int16(temp_comp, &_buffer[0]);
+        hton_int32(press_comp, &_buffer[2]);
+        hton_int16(hum_comp/10, &_buffer[6]);
+        hton_int32(gas_res, &_buffer[8]);
+    }
+
 
     _buffer[12] = (getTemperatureOversampling() << 4)&0xF0;
     _buffer[12] |= getHumidityOversampling()&0x0F;
@@ -729,3 +781,18 @@ uint8_t BME680Sensor::handleCommand(uint16_t cmdSequenceID, uint8_t command, uin
     return CMD_STATUS_SUCCESS;
 }
 #endif
+
+uint8_t BME680Sensor::getPort() const                             
+{ 
+    PRINT_INFO(F("Sequence number:  "));
+    PRINT_INFO(sequenceNumber);
+    PRINT_INFO(F(" test: "));
+    PRINTLN_INFO((sequenceNumber % 2));
+
+    if (((long int)(sequenceNumber/3) % 3) == 0)
+        return 25;
+    if (((long int)(sequenceNumber/3) % 3) == 1)
+        return 15;
+    else    
+        return 5; 
+}
