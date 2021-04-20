@@ -136,7 +136,166 @@ function DecodeLSM9DS1Sensor(bytes) {
 		magnetic_z: rawMagZ*magneticSensitivity/1000.0,
 	};
 }
+function DecodeLSM9DS1MinSensor(bytes) {
+	// LSM9DS1 sensor
+	if (bytes.length !== 20) {
+		return {
+			error: "payload length is not correct size",
+			port: port,
+			length: bytes.length
+		};
+	}
 
+	var rawAccelX = convertTwoBytesToSignedInt(bytes[0], bytes[1]);
+	var rawAccelY = convertTwoBytesToSignedInt(bytes[2], bytes[3]);
+	var rawAccelZ = convertTwoBytesToSignedInt(bytes[4], bytes[5]);
+	var rawGyroX = convertTwoBytesToSignedInt(bytes[6], bytes[7]);
+	var rawGyroY = convertTwoBytesToSignedInt(bytes[8], bytes[9]);
+	var rawGyroZ = convertTwoBytesToSignedInt(bytes[10], bytes[11]);
+	var rawMagX = convertTwoBytesToSignedInt(bytes[12], bytes[13]);
+	var rawMagY = convertTwoBytesToSignedInt(bytes[14], bytes[15]);
+	var rawMagZ = convertTwoBytesToSignedInt(bytes[16], bytes[17]);
+
+	var accelSensitivty = 0.0;
+	switch (bytes[18]&0x0F) {
+		case 0x01:	// ACCELERATION_SENSITIVITY_2G
+			accelSensitivty = 0.061;
+			break;
+		case 0x02:	// ACCELERATION_SENSITIVITY_4G
+			accelSensitivty = 0.122;
+			break;
+		case 0x03:	// ACCELERATION_SENSITIVITY_8G
+			accelSensitivty = 0.244;
+			break;
+		case 0x04:	// ACCELERATION_SENSITIVITY_16G
+			accelSensitivty = 0.732;
+			break;
+		default:
+			break;
+	}
+
+	var gyroSensitivity = 0.0;
+	switch (bytes[18]&0xF0) {
+		case 0x10:	// GYRO_SENSITIVITY_245DPS
+			gyroSensitivity = 0.00875;
+			break;
+		case 0x20: 	// GYRO_SENSITIVITY_500DPS
+			gyroSensitivity = 0.0175;
+			break;
+		case 0x30:	// GYRO_SENSITIVITY_2000DPS
+			gyroSensitivity = 0.070;
+			break;
+		default:
+			break;
+	}
+
+	var magneticSensitivity = 0.0;
+	switch (bytes[19]&0x0F) {
+		case 0x01:	// MAGNETIC_SENSITIVITY_4GAUSS
+			magneticSensitivity = 0.14;
+			break;
+		case 0x02:	// MAGNETIC_SENSITIVITY_8GAUSS
+			magneticSensitivity = 0.29;
+			break;
+		case 0x03:	// MAGNETIC_SENSITIVITY_12GAUSS
+			magneticSensitivity = 0.43;
+			break;
+		case 0x04:	// MAGNETIC_SENSITIVITY_16GAUSS
+			magneticSensitivity = 0.58;
+			break;
+		default:
+			break;
+	}
+
+	return {
+		acceleration_x_min: rawAccelX*accelSensitivty/1000.0,
+		acceleration_y_min: rawAccelY*accelSensitivty/1000.0,
+		acceleration_z_min: rawAccelZ*accelSensitivty/1000.0,
+		gyro_x_min: rawGyroX*gyroSensitivity/1000.0,
+		gyro_y_min: rawGyroY*gyroSensitivity/1000.0,
+		gyro_z_min: rawGyroZ*gyroSensitivity/1000.0,
+	};
+}
+function DecodeLSM9DS1MaxSensor(bytes) {
+	// LSM9DS1 sensor
+	if (bytes.length !== 20) {
+		return {
+			error: "payload length is not correct size",
+			port: port,
+			length: bytes.length
+		};
+	}
+
+	var rawAccelX = convertTwoBytesToSignedInt(bytes[0], bytes[1]);
+	var rawAccelY = convertTwoBytesToSignedInt(bytes[2], bytes[3]);
+	var rawAccelZ = convertTwoBytesToSignedInt(bytes[4], bytes[5]);
+	var rawGyroX = convertTwoBytesToSignedInt(bytes[6], bytes[7]);
+	var rawGyroY = convertTwoBytesToSignedInt(bytes[8], bytes[9]);
+	var rawGyroZ = convertTwoBytesToSignedInt(bytes[10], bytes[11]);
+	var rawMagX = convertTwoBytesToSignedInt(bytes[12], bytes[13]);
+	var rawMagY = convertTwoBytesToSignedInt(bytes[14], bytes[15]);
+	var rawMagZ = convertTwoBytesToSignedInt(bytes[16], bytes[17]);
+
+	var accelSensitivty = 0.0;
+	switch (bytes[18]&0x0F) {
+		case 0x01:	// ACCELERATION_SENSITIVITY_2G
+			accelSensitivty = 0.061;
+			break;
+		case 0x02:	// ACCELERATION_SENSITIVITY_4G
+			accelSensitivty = 0.122;
+			break;
+		case 0x03:	// ACCELERATION_SENSITIVITY_8G
+			accelSensitivty = 0.244;
+			break;
+		case 0x04:	// ACCELERATION_SENSITIVITY_16G
+			accelSensitivty = 0.732;
+			break;
+		default:
+			break;
+	}
+
+	var gyroSensitivity = 0.0;
+	switch (bytes[18]&0xF0) {
+		case 0x10:	// GYRO_SENSITIVITY_245DPS
+			gyroSensitivity = 0.00875;
+			break;
+		case 0x20: 	// GYRO_SENSITIVITY_500DPS
+			gyroSensitivity = 0.0175;
+			break;
+		case 0x30:	// GYRO_SENSITIVITY_2000DPS
+			gyroSensitivity = 0.070;
+			break;
+		default:
+			break;
+	}
+
+	var magneticSensitivity = 0.0;
+	switch (bytes[19]&0x0F) {
+		case 0x01:	// MAGNETIC_SENSITIVITY_4GAUSS
+			magneticSensitivity = 0.14;
+			break;
+		case 0x02:	// MAGNETIC_SENSITIVITY_8GAUSS
+			magneticSensitivity = 0.29;
+			break;
+		case 0x03:	// MAGNETIC_SENSITIVITY_12GAUSS
+			magneticSensitivity = 0.43;
+			break;
+		case 0x04:	// MAGNETIC_SENSITIVITY_16GAUSS
+			magneticSensitivity = 0.58;
+			break;
+		default:
+			break;
+	}
+
+	return {
+		acceleration_x_max: rawAccelX*accelSensitivty/1000.0,
+		acceleration_y_max: rawAccelY*accelSensitivty/1000.0,
+		acceleration_z_max: rawAccelZ*accelSensitivty/1000.0,
+		gyro_x_max: rawGyroX*gyroSensitivity/1000.0,
+		gyro_y_max: rawGyroY*gyroSensitivity/1000.0,
+		gyro_z_max: rawGyroZ*gyroSensitivity/1000.0,
+	};
+}
 function DecodeSHT30Sensor(bytes) {
 	// SHT30 sensor
 	if (bytes.length !== 5) {
@@ -427,6 +586,10 @@ function Decoder(bytes, port) {
 		return DecodeBME680MinSensor(bytes);
 	} else if (port === 25 ) {
 		return DecodeBME680MaxSensor(bytes);
+	} else if (port === 12 ) {
+		return DecodeLSM9DS1MinSensor(bytes);		
+	} else if (port === 22 ) {
+		return DecodeLSM9DS1MaxSensor(bytes);
 	} else if (port === 0) {
 		//nothing
 		return {};
