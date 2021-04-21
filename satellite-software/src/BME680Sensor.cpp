@@ -2,6 +2,7 @@
 #include "Logging.h"
 #include "Utilities.h"
 #include "PersistedConfiguration.h"
+#include "AmbaSat1App.h"
 
 #define BME680_CHIP_ID_REG     0xD0
 #define BME680_RESET_REG       0xE0
@@ -52,6 +53,8 @@
 
 long int max[4], min[4];
 extern uint32_t    sequenceNumber; 
+extern int address_base;
+extern int address;
 
 BME680Sensor::BME680Sensor(PersistedConfiguration& config)
     :   SensorBase(config),
@@ -89,8 +92,8 @@ bool BME680Sensor::begin(void)
     PRINTLN_INFO(F("Setting max and min values"));
     for (int i=0; i < 4; i++)
     {
-        min[i] =  1000000;
-        max[i] = -1000000;      
+        min[i] =  200000;
+        max[i] = -200000;      
     }
     return true;
 }
@@ -335,52 +338,51 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer()
     if (temp_comp > max[0])
     {
         max[0] = temp_comp;
-        PRINT_INFO(F("Updating temp max! "));
-        PRINTLN_INFO(max[0]);
+ //       PRINT_INFO(F("Updating temp max! "));
+ //       PRINTLN_INFO(max[0]);
     }
    if (temp_comp < min[0])
     {
         min[0] = temp_comp;
-        PRINT_INFO(F("Updating temp min! "));
-        PRINTLN_INFO(min[0]);
+ //       PRINT_INFO(F("Updating temp min! "));
+ //       PRINTLN_INFO(min[0]);
     }
     if (press_comp > max[1])
     {
         max[1] = press_comp;
-        PRINT_INFO(F("Updating press max! "));
-        PRINTLN_INFO(max[1]);
+ //       PRINT_INFO(F("Updating press max! "));
+ //       PRINTLN_INFO(max[1]);
     }      
     if (press_comp < min[1])
     {
         min[1] = press_comp;
-        PRINT_INFO(F("Updating press min! "));
-        PRINTLN_INFO(min[1]);
+ //       PRINT_INFO(F("Updating press min! "));
+ //       PRINTLN_INFO(min[1]);
     }   
     if (hum_comp > max[2])
     {
         max[2] = hum_comp;
-        PRINT_INFO(F("Updating hum max! "));
-        PRINTLN_INFO(max[2]);
+ //       PRINT_INFO(F("Updating hum max! "));
+ //       PRINTLN_INFO(max[2]);
     }
    if (hum_comp < min[2])
     {
         min[2] = hum_comp;
-        PRINT_INFO(F("Updating hum min! "));
-        PRINTLN_INFO(min[2]);
+ //       PRINT_INFO(F("Updating hum min! "));
+ //       PRINTLN_INFO(min[2]);
     }
     if (gas_res > max[3])
     {
         max[3] = gas_res;
-        PRINT_INFO(F("Updating gas max! "));
-        PRINTLN_INFO(max[3]);
+ //       PRINT_INFO(F("Updating gas max! "));
+ //       PRINTLN_INFO(max[3]);
     }
    if (gas_res < min[3])
     {
         min[3] = gas_res;
-        PRINT_INFO(F("Updating gas min! "));
-        PRINTLN_INFO(min[3]);
+ //       PRINT_INFO(F("Updating gas min! "));
+ //       PRINTLN_INFO(min[3]);
     }
-
 
     //
     // Transmit buffer format:
@@ -397,14 +399,14 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer()
     //
 
     memset(_buffer, 0, BME680_RESULTS_BUFFER_SIZE);
-    if (((long int)(sequenceNumber/3) % 3) == 0)
+    if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 0)
     {
         hton_int16(max[0], &_buffer[0]);
         hton_int32(max[1], &_buffer[2]);
         hton_int16(max[2]/10, &_buffer[6]);
         hton_int32(max[3], &_buffer[8]);
     }
-    else if (((long int)(sequenceNumber/3) % 3) == 1)
+    else if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 1)
     {
         hton_int16(min[0], &_buffer[0]);
         hton_int32(min[1], &_buffer[2]);
@@ -418,6 +420,21 @@ const uint8_t* BME680Sensor::getCurrentMeasurementBuffer()
         hton_int32(gas_res, &_buffer[8]);
     }
 
+    if (((long int)(sequenceNumber/3) % TX_TO_STORED_RATIO) == 0)
+    {
+        PRINT_INFO(F("  Storing Sensor, Sequence: "));
+        PRINT_INFO((int)LMIC.seqnoUp);
+        PRINT_INFO(F("  address: "));
+        PRINTLN_INFO(address_base + address);       
+        eeprom_update_word((uint16_t *)address_base + address, (int)LMIC.seqnoUp);
+        eeprom_update_word((uint16_t *)address_base + address+2, _buffer[0]);
+        eeprom_update_dword((uint32_t*)address_base + address+4, _buffer[2]);
+        eeprom_update_word((uint16_t *)address_base + address+8, _buffer[6]);
+        eeprom_update_dword((uint32_t*)address_base + address+12, _buffer[10]);
+        eeprom_update_word((uint16_t *)address_base + address+14, 0xA700);
+
+        address = (address + 16) % SIZE_OF_SENSOR_STORAGE;
+    }   
 
     _buffer[12] = (getTemperatureOversampling() << 4)&0xF0;
     _buffer[12] |= getHumidityOversampling()&0x0F;
@@ -787,12 +804,21 @@ uint8_t BME680Sensor::getPort() const
     PRINT_INFO(F("Sequence number:  "));
     PRINT_INFO(sequenceNumber);
     PRINT_INFO(F(" test: "));
-    PRINTLN_INFO((sequenceNumber % 2));
+    PRINTLN_INFO(((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH));
 
-    if (((long int)(sequenceNumber/3) % 3) == 0)
+    if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 0)
+    {
+        PRINTLN_INFO(F("Sending Sensor Max"));
         return 25;
-    if (((long int)(sequenceNumber/3) % 3) == 1)
+    }
+    if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 1)
+    {
+        PRINTLN_INFO(F("Sending Sensor Min"));
         return 15;
-    else    
-        return 5; 
+    }
+    else  
+    {
+        PRINTLN_INFO(F("Sending Sensor RT"));
+        return 5;
+    }
 }
