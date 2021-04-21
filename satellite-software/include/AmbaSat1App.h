@@ -43,10 +43,10 @@ public:
     // Methods for handling the "Statellite Status" payload
     virtual const uint8_t* getCurrentMeasurementBuffer(void);
     virtual uint8_t getMeasurementBufferSize() const                    { return SATELLITE_STATUS_BUFFER_SIZE; }
-    virtual uint8_t getPort() const                                     { return 1; }
+   //  virtual uint8_t getPort() const                                     { return 1; }
+    virtual uint8_t getPort() const; //                                    { return 1; }
 
     int16_t readVccMilliVolts(void) const;
-
 
     //
     // Command Handling (if enabled)
@@ -81,3 +81,7 @@ void initfunc (osjob_t* j);
 #endif
 
 #endif //__AmbaSat1App__
+
+#define MAX_MIN_RT_CYCLE_LENGTH 5
+#define TX_TO_STORED_RATIO 2
+#define SIZE_OF_SENSOR_STORAGE (0x3F0 - 0x100)
