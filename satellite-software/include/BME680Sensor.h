@@ -74,9 +74,10 @@ public:
 
     virtual void setup(void);
     virtual bool isActive(void) const;
-    virtual const uint8_t* getCurrentMeasurementBuffer(void);
+    virtual const uint8_t* getCurrentMeasurementBuffer();
     virtual uint8_t getMeasurementBufferSize() const            { return BME680_RESULTS_BUFFER_SIZE; }
-    virtual uint8_t getPort() const                             { return 5; }
+//   virtual uint8_t getPort() const                             { return 5; }
+    virtual uint8_t getPort() const; //                             { return 5; }
 
     void startMeasurementProcess(void);
 
