@@ -6,6 +6,10 @@
 #include "Logging.h"
 #include <avr/eeprom.h>
 
+extern uint32_t    sequenceNumber; 
+int address_base = 0x100;
+int address = 0;
+
 //
 // Satellite Physical Setup
 //
@@ -237,12 +241,16 @@ void AmbaSat1App::loop()
     _config.setUplinkFrameCount(LMIC.seqnoUp);
     _config.updateCRC();
 
+    sequenceNumber = LMIC.seqnoUp;
+    PRINT_INFO(F("Sequence number: "));
+    PRINTLN_INFO(sequenceNumber);
+
     // flush serial before going to sleep
     Serial.flush();
 
     // sleep device for designated sleep cycles
    // for (int i=0; i < _config.getUplinkSleepCycles(); i++)
-   for (int i=0; i < 16; i++)  // 64 seconds between packets
+   for (int i=0; i < 8; i++)  // 64 seconds between packets
     {
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    //sleep 8 seconds * sleepcycles
     }
@@ -273,21 +281,7 @@ void AmbaSat1App::sendSensorPayload(LoRaPayloadBase& sensor)
     PRINT_INFO(F("  Sending payload = "));
     print_buffer(data_ptr, sensor.getMeasurementBufferSize());
     Serial.flush();
-#endif
-
-    if (payload_sensor_send)
-    {
-        PRINT_INFO(F("  Sending Sensor, Sequence: "));
-        PRINT_INFO((int)LMIC.seqnoUp);
-        PRINT_INFO(F("\n"));
-        Serial.flush();
-        payload_sensor_send = false;
-        eeprom_update_word((uint16_t *)0x100, (int)LMIC.seqnoUp);
-        eeprom_update_word((uint16_t *)0x102, data_ptr[0]);
-        eeprom_update_dword((uint32_t*)0x104, data_ptr[2]);
-        eeprom_update_word((uint16_t *)0x108, data_ptr[6]);
-        eeprom_update_dword((uint32_t*)0x10c, data_ptr[10]);
-    }    
+#endif 
 
     // LMIC seems to crash here if we previously just received a downlink AND
     // there are any pending data in the Serial queue. So flush the Serial queue.
@@ -638,6 +632,11 @@ int16_t AmbaSat1App::readVccMilliVolts(void) const
   return result < 32767 ? result : 32767; // Vcc in millivolts
 }
 #endif
+
+uint8_t AmbaSat1App::getPort() const                                   
+{ 
+    return 1; 
+}
 
 const uint8_t*
 AmbaSat1App::getCurrentMeasurementBuffer(void)
