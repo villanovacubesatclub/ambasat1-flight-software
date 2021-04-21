@@ -72,8 +72,8 @@ public:
     virtual bool isActive(void) const;
     virtual const uint8_t* getCurrentMeasurementBuffer(void);
     virtual uint8_t getMeasurementBufferSize() const            { return LSM9DS1_RESULTS_BUFFER_SIZE; }
-    virtual uint8_t getPort() const                             { return 2; }
-
+  //  virtual uint8_t getPort() const                             { return 2; }
+    virtual uint8_t getPort() const;
     //
     // Sensor Configuration Delegate
     //
