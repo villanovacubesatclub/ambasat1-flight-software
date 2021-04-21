@@ -3,6 +3,7 @@
 #include "Utilities.h"
 #include "PersistedConfiguration.h"
 #include "Logging.h"
+#include "AmbaSat1App.h"
 
 //
 // LSM9DS1Sensor
@@ -41,6 +42,9 @@
 
 long int accelMax[3], accelMin[3];
 long int gyroMax[3], gyroMin[3];
+extern uint32_t    sequenceNumber; 
+extern int address_base;
+extern int address;
 
 LSM9DS1Sensor::LSM9DS1Sensor(PersistedConfiguration& config)
     :   SensorBase(config)
@@ -308,52 +312,91 @@ LSM9DS1Sensor::getCurrentMeasurementBuffer(void)
         if (accelData[i] > accelMax[i])
         {
             accelMax[i] = accelData[i];
-            PRINT_INFO(F("Updating max accel["));
-            PRINT_INFO(i);
-            PRINT_INFO(F("] to "));
-            PRINTLN_INFO(accelData[i]);
+ //           PRINT_INFO(F("Updating max accel["));
+ //           PRINT_INFO(i);
+ //           PRINT_INFO(F("] to "));
+ //           PRINTLN_INFO(accelData[i]);
         }
         if (accelData[i] < accelMin[i])
         {
             accelMin[i] = accelData[i];
-            PRINT_INFO(F("Updating min accel["));
-            PRINT_INFO(i);
-            PRINT_INFO(F("] to "));
-            PRINTLN_INFO(accelData[i]);
+ //           PRINT_INFO(F("Updating min accel["));
+ //           PRINT_INFO(i);
+ //           PRINT_INFO(F("] to "));
+ //           PRINTLN_INFO(accelData[i]);
         }
         if (gyroData[i] > gyroMax[i])
         {
             gyroMax[i] = gyroData[i];
-            PRINT_INFO(F("Updating max gyro["));
-            PRINT_INFO(i);
-            PRINT_INFO(F("] to "));
-            PRINTLN_INFO(gyroData[i]);
+ //           PRINT_INFO(F("Updating max gyro["));
+ //           PRINT_INFO(i);
+ //           PRINT_INFO(F("] to "));
+ //           PRINTLN_INFO(gyroData[i]);
         }
         if (gyroData[i] < gyroMin[i])
         {
             gyroMin[i] = gyroData[i];
-            PRINT_INFO(F("Updating min gyro["));
-            PRINT_INFO(i);
-            PRINT_INFO(F("] to "));
-            PRINTLN_INFO(gyroData[i]);
+ //           PRINT_INFO(F("Updating min gyro["));
+ //           PRINT_INFO(i);
+ //           PRINT_INFO(F("] to "));
+ //           PRINTLN_INFO(gyroData[i]);
         }
       }
 
-    hton_int16(accelData[0], &_buffer[0]);
-    hton_int16(accelData[1], &_buffer[2]);
-    hton_int16(accelData[2], &_buffer[4]);
-    hton_int16(gyroData[0], &_buffer[6]);
-    hton_int16(gyroData[1], &_buffer[8]);
-    hton_int16(gyroData[2], &_buffer[10]);
-    hton_int16(magneticData[0], &_buffer[12]);
-    hton_int16(magneticData[0], &_buffer[14]);
-    hton_int16(magneticData[0], &_buffer[16]);
-    _buffer[18] = (uint8_t)getAcceleratonSensitivitySetting();
-    _buffer[18] |= (uint8_t)getGysroSensitivitySetting();
-    _buffer[19] = (uint8_t)getMagneticSensitivitySetting();
+    if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 0)
+    {
+        hton_int16(accelMax[0], &_buffer[0]);
+        hton_int16(accelMax[1], &_buffer[2]);
+        hton_int16(accelMax[2], &_buffer[4]);
+        hton_int16(gyroMax[0], &_buffer[6]);
+        hton_int16(gyroMax[1], &_buffer[8]);
+        hton_int16(gyroMax[2], &_buffer[10]);
+    }
+    else if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 1)
+    {
+        hton_int16(accelMin[0], &_buffer[0]);
+        hton_int16(accelMin[1], &_buffer[2]);
+        hton_int16(accelMin[2], &_buffer[4]);
+        hton_int16(gyroMin[0], &_buffer[6]);
+        hton_int16(gyroMin[1], &_buffer[8]);
+        hton_int16(gyroMin[2], &_buffer[10]);
+    } else 
+    {
+        hton_int16(accelData[0], &_buffer[0]);
+        hton_int16(accelData[1], &_buffer[2]);
+        hton_int16(accelData[2], &_buffer[4]);
+        hton_int16(gyroData[0], &_buffer[6]);
+        hton_int16(gyroData[1], &_buffer[8]);
+        hton_int16(gyroData[2], &_buffer[10]);
+        hton_int16(magneticData[0], &_buffer[12]);
+        hton_int16(magneticData[0], &_buffer[14]);
+        hton_int16(magneticData[0], &_buffer[16]);
+        _buffer[18] = (uint8_t)getAcceleratonSensitivitySetting();
+        _buffer[18] |= (uint8_t)getGysroSensitivitySetting();
+        _buffer[19] = (uint8_t)getMagneticSensitivitySetting();
+    }
+  
+    if (((long int)(sequenceNumber/3) % TX_TO_STORED_RATIO) == 0)
+    {
+        PRINT_INFO(F("  Storing IHU, Sequence: "));
+        PRINT_INFO((int)LMIC.seqnoUp);
+        PRINT_INFO(F("  address: "));
+        PRINTLN_INFO(address_base + address); 
+
+        eeprom_update_word((uint16_t *)address_base + address, (int)LMIC.seqnoUp);
+        int i;
+        for (i=0; i < 7; i++)
+        {
+            eeprom_update_word((uint16_t *)address_base + address + i*2, _buffer[2*i]);
+        }      
+        eeprom_update_word((uint16_t *)address_base + address + 2*i, 0xA700);
+        PRINTLN_INFO(2*i);
+        address = (address + 16) % SIZE_OF_SENSOR_STORAGE;
+    } 
 
     return _buffer;
 }
+
 
 //
 // Sensor Configuration Delegate
@@ -451,3 +494,26 @@ uint8_t LSM9DS1Sensor::handleCommand(uint16_t cmdSequenceID, uint8_t command, ui
     return CMD_STATUS_SUCCESS;
 }
 #endif
+uint8_t LSM9DS1Sensor::getPort() const                             
+{ 
+    PRINT_INFO(F("Sequence number:  "));
+    PRINT_INFO(sequenceNumber);
+    PRINT_INFO(F(" test: "));
+    PRINTLN_INFO(((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH));
+
+     if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 0)
+    {
+        PRINTLN_INFO(F("Sending IMU Max"));
+        return 22;
+    }
+    if (((long int)(sequenceNumber/3) % MAX_MIN_RT_CYCLE_LENGTH) == 1)
+    {
+        PRINTLN_INFO(F("Sending IMU Min"));
+        return 12;
+    }
+    else  
+    {
+        PRINTLN_INFO(F("Sending IMU RT"));
+        return 2;
+    }       
+}
